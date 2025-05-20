@@ -1,9 +1,12 @@
 import React, { useCallback, useState, useRef, KeyboardEvent } from "react";
 
+// next todo: figure out input one guess at a time
 function App() {
   const name = "Aiman";
   const NUM_GUESSES = 5;
   const max_entries = name.length * NUM_GUESSES;
+  // read maintains the index for removing characters
+  // write maintains the index for writing new characters
   const [focusedInput, setFocusedInput] = useState({ read: -1, write: 0 });
   const inputRef = useRef<(HTMLInputElement | null)[]>([]);
   const [inputGuesses, setInputGuesses] = useState(

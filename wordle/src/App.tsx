@@ -1,13 +1,15 @@
-import React, { useCallback, useState, useRef, KeyboardEvent } from "react";
+import React, { useCallback, useState, useRef, KeyboardEvent, useEffect } from "react";
 
+const NUM_GUESSES = 5;
 // next todo: figure out input one guess at a time
 function App() {
   const name = "Aiman";
-  const NUM_GUESSES = 5;
   const max_entries = name.length * NUM_GUESSES;
   // read maintains the index for removing characters
   // write maintains the index for writing new characters
-  const [focusedInput, setFocusedInput] = useState({ read: -1, write: 0 });
+  const [focusedInput, setFocusedInput] = useState(0)
+  const [currentGuess, setCurrentGuess] = useState(0)
+  const [gameComplete, setGameComplete] = useState(false)
   const inputRef = useRef<(HTMLInputElement | null)[]>([]);
   const [inputGuesses, setInputGuesses] = useState(
     Array.from({ length: NUM_GUESSES }, () =>
@@ -27,47 +29,77 @@ function App() {
     const col = index % NUM_GUESSES;
     return { row, col };
   };
+  // valid inputs are 
+  // letters
+  // backspace
+  // delete
   const isInputValid = (charCode: number) => {
     return (
       (charCode >= 65 && charCode <= 90) ||
       (charCode >= 97 && charCode <= 122) ||
       charCode === 8 ||
-      charCode === 127
+      charCode === 127 ||
+      charCode === 69
     );
   };
   const handleKeydown = useCallback(
     (code: string, key: string) => {
+      // if game is complete then over
+      if (gameComplete) {
+        return;
+      }
+      // if the key is invalid then don't do anything
       if (!isInputValid(key.charCodeAt(0))) {
         return;
       }
+
       if (
-        (code === "Backspace" && focusedInput["read"] === -1) ||
-        (code !== "Backspace" && focusedInput["write"] === max_entries)
+        (code === "Backspace" && focusedInput === 0 && inputGuesses[currentGuess][focusedInput] === "") ||
+        (code !== "Enter" && code !== "Backspace" && focusedInput === name.length)
       ) {
         return;
       }
-      const updatedInput = JSON.parse(JSON.stringify(inputGuesses));
-      const newFocusedInput = { read: 0, write: 0 };
 
+      let updatedInput = JSON.parse(JSON.stringify(inputGuesses));
+      let newFocusedInput = focusedInput
+      let newGuess = currentGuess;
       // if backspace is pressed
       // if input is entered --> read should be the current but write should be the next
       // input is changed at the write index
       // if backspace is pressed --> read index is deleted and write is decremented
       if (code === "Backspace") {
-        const { row, col } = generateRowCol(focusedInput.read);
-        newFocusedInput["read"] = focusedInput.read - 1;
-        newFocusedInput["write"] = focusedInput.write - 1;
+        if (focusedInput !== 0) {
+          newFocusedInput -= 1
+          setFocusedInput(newFocusedInput);
+        }
+        if (inputGuesses[currentGuess][focusedInput] !== "") {
+          updatedInput[currentGuess][focusedInput] = "";
+        }
+        else {
+          updatedInput[currentGuess][focusedInput - 1] = "";
+        }
+        setInputGuesses(updatedInput);
 
-        updatedInput[row][col] = "";
-      } else {
-        const { row, col } = generateRowCol(focusedInput.write);
-        newFocusedInput["read"] = focusedInput.read + 1;
-        newFocusedInput["write"] = focusedInput.write + 1;
-        updatedInput[row][col] = key.toUpperCase();
       }
-      setInputGuesses(updatedInput);
-      setFocusedInput(newFocusedInput);
-      inputRef.current[newFocusedInput.write]?.focus();
+      else if (code === "Enter") {
+        newGuess += 1
+        setCurrentGuess(newGuess);
+        if (newGuess === NUM_GUESSES) {
+          setGameComplete(true)
+          alert("Game is complete")
+          return;
+        }
+        newFocusedInput = 0
+        setFocusedInput(newFocusedInput)
+      }
+      else {
+        if (focusedInput !== name.length - 1) {
+          setFocusedInput(focusedInput + 1);
+        }
+        updatedInput[currentGuess][focusedInput] = key.toUpperCase();
+        setInputGuesses(updatedInput);
+      }
+      // inputRef.current[generateIndex(newGuess, newFocusedInput.write)]?.focus();
     },
     [focusedInput, inputGuesses, max_entries]
   );
@@ -81,12 +113,13 @@ function App() {
             ref={(item) => {
               inputRef.current[generateIndex(row, index)] = item;
             }}
-            readOnly={generateIndex(row, index) !== focusedInput.write}
+            readOnly={currentGuess !== row || focusedInput !== index}
             maxLength={1}
             type="text"
             value={inputGuesses[row][index] ? inputGuesses[row][index] : ""}
-            className="text-md bg-default-background text-default-text border border-default-secondary focus:outline-default-accent text-center size-tile-md"
+            className="caret-transparent text-md bg-default-background text-default-text border border-default-secondary text-center size-tile-md focus:outline-none"
             key={index}
+            disabled={gameComplete}
           ></input>
         ))}
       </div>
